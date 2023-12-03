@@ -1,0 +1,21 @@
+{
+   "version": 1,
+   "author": "Anonymous maker",
+   "editor": "wokwi",
+   "parts": [
+     { "type": "wokwi-arduino-nano", "id": "nano", "top": -24, "left": 18.7, "attrs": {} },
+     {
+       "type": "wokwi-led-ring",
+       "id": "ring1",
+       "top": -104.96,
+       "left": -123.61,
+       "attrs": { "pixels": "16" }
+     }
+   ],
+   "connections": [
+     [ "nano:13", "ring1:DIN", "green", [ "v38.4", "h-86.4" ] ],
+     [ "ring1:VCC", "nano:5V", "red", [ "v38.4", "h201.6" ] ],
+     [ "ring1:GND", "nano:GND.1", "black", [ "v48", "h230.4" ] ]
+   ],
+   "dependencies": {}
+ }
