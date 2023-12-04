@@ -1,5 +1,37 @@
 #include "effects.h"
 
+uint8_t effect;
+bool stop = false;
+uint8_t dotHue = 220;
+
+void ShowEffect(){
+  static uint32_t _speed = 50; // чем больше, тем медленнее
+  static uint32_t last_time = 0;
+
+  if (millis() - last_time >= _speed && !stop)
+  {
+    last_time = millis();
+
+    Serial.println(effect); 
+
+    switch(effect){
+      case 0: static uint8_t temp;
+        Lighter(dotHue);
+        break;
+      case 1: Colors();
+        break;
+      case 2: RainbowUp();
+        break;
+      case 3: RainbowDown();
+        break;
+      case 4: Sparkles();
+        break;
+      default: effect = 0;
+    }
+    FastLED.show();
+  }
+}
+
 void RainbowDown(){
   static uint8_t color = 0;
   byte hue = 255 / (RAINBOW_LENGHT * NUM_LEDS);
@@ -51,7 +83,7 @@ void FillAll(CRGB newcolor) {
 
 // ****************************** ОГОНЁК ******************************
 
-void Lighter(byte r, byte g, byte b) {
+void Lighter(uint8_t newcolor) {
   static uint16_t position;
   static boolean direction = true;
 
@@ -69,7 +101,7 @@ void Lighter(byte r, byte g, byte b) {
     }
   }
 
-  leds[position].setRGB(r, g, b);
+  leds[position] = CHSV(newcolor, 255, 255);
 }
 
 void Colors(){

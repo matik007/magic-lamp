@@ -13,6 +13,9 @@
 #define RAINBOW_LENGHT 3 // длинна радуги (1 - радуна провторяется каждые NUM_LEDS светодиодов, и сливается в маленьком светильнике в белый)
 
 extern CRGB leds[NUM_LEDS];
+extern uint8_t effect;
+extern uint8_t dotHue; // цвет режима огонёк
+extern bool stop;
 
 void FillAll(CRGB newcolor);
 void Fade(uint8_t speed = FADE_SPEED);
@@ -21,4 +24,5 @@ void Colors();
 void RainbowDown();
 void RainbowUp();
 void Sparkles();
-void Lighter(byte r, byte g, byte b);
+void Lighter(uint8_t newcolor);
+void ShowEffect();

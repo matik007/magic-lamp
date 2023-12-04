@@ -8,29 +8,45 @@
 #include <Arduino.h>
 #include <FastLED.h>
 #include "GyverButton.h"
+#include "VirtualButton.h"
 
 #include "effects.h"
 
 #define BTN_PIN 2
+#define ECHO_PIN 4
+#define TRIG_PIN 3
+
+VButton gest;
 
 GButton touch(BTN_PIN, LOW_PULL, NORM_OPEN);
 
 CRGB leds[NUM_LEDS];
 
+uint8_t brightness = BRIGHTNESS;
+
 uint8_t state;
 uint8_t lastState;
-uint8_t effect;
 
-bool powerOn;
+bool powerOn = false;
 bool lastPower = true;
-bool stop = false;
+
+
 
 #define OFF 0
 
-void ShowEffect();
+int getDist(byte trig, byte echo);
+int getFilterMedian(int newVal);
+int getFilterSkip(int val);
+int getFilterExp(int val);
+void pulse();
+void DistanceControl();
+void TouchControl();
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
+
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(TRIG_PIN, OUTPUT);
 
   touch.setTimeout(300);
   touch.setClickTimeout(500);
@@ -45,6 +61,87 @@ void setup() {
 }
 
 void loop() {
+  DistanceControl();
+  TouchControl();
+  
+  if(powerOn){
+    if(lastPower != powerOn){
+      lastPower = powerOn;
+      stop = false;
+      for(int i = 0; i < brightness; i++){
+        FastLED.setBrightness(i);
+        FastLED.show();
+        delay(2);
+      }
+    }
+    ShowEffect();
+  } else {
+    if(lastPower != powerOn){
+      stop = true;
+      lastPower = powerOn;
+      // Fade(5);
+      for(int i = brightness; i > 0; i--){
+        FastLED.setBrightness(i);
+        FastLED.show();
+        delay(2);
+      }
+    }
+  }
+}
+
+void DistanceControl(){
+  int dist = getDist(TRIG_PIN, ECHO_PIN); // получаем расстояние
+  dist = getFilterMedian(dist);         // медиана
+  dist = getFilterSkip(dist);           // пропускающий фильтр
+  int dist_f = getFilterExp(dist);      // усреднение
+  Serial.println(dist_f);
+
+  gest.poll(dist); // расстояние больше 0 - это клик
+
+  if(gest.hasClicks()){
+    switch (gest.clicks) {
+      case 1:
+        powerOn = !powerOn;  // вкл/выкл
+        break;
+      case 2:
+        if(powerOn) effect++;
+        break;
+      case 3:
+        if(powerOn) effect--;
+        break;
+    }
+    
+  }
+
+  // удержание (выполнится однократно)
+  if(gest.held() && powerOn){
+    switch (gest.clicks) {
+      case 0:
+        stop = !stop;
+      break;
+      case 1:
+      // тут можно сохранить значение dist и от него регулировать яркость ниже, тогда не будет рыка на увень яркости
+      break;
+    }
+    
+  }
+
+   // удержание (выполнится пока удерживается)
+    if (gest.hold() && powerOn){
+       switch (gest.clicks) {
+        case 1:
+          brightness = constrain(map(dist, 4, 300, 50, 255), 50, 255);
+          FastLED.setBrightness(brightness);
+          FastLED.show();
+        break;
+        case 2: 
+          dotHue = constrain(map(dist, 4, 300, 0, 255), 0, 255);
+        break;
+      }
+    }
+}
+
+void TouchControl(){
   touch.tick();
 
   if(touch.isSingle()){
@@ -52,49 +149,81 @@ void loop() {
   }
   if(touch.isDouble()){
     effect++;
+    stop = false;
   }
   if(touch.isHolded() && powerOn){
     stop = !stop;
   }
+}
 
-  if(powerOn){
-    if(lastPower != powerOn){
-      lastPower = powerOn;
-      stop = false;
-      Bloom();
-    }
-    ShowEffect();
-  } else {
-    stop = true;
-    lastPower = powerOn;
-    Fade(5);
-    FastLED.show();
+int prev_br;
+
+void pulse() {
+  for (int i = prev_br; i < prev_br + 45; i += 3) {
+    FastLED.setBrightness(min(255, i));
+    delay(10);
+  }
+  for (int i = prev_br + 45; i > prev_br; i -= 3) {
+    FastLED.setBrightness(min(255, i));
+    delay(10);
   }
 }
 
-void ShowEffect(){
-  static uint32_t _speed = 50; // чем больше, тем медленнее
-  static uint32_t last_time = 0;
+// получение расстояния с дальномера
+#define HC_MAX_LEN 1000L  // макс. расстояние измерения, мм
+int getDist(byte trig, byte echo) {
+  digitalWrite(trig, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trig, LOW);
 
-  if (millis() - last_time >= _speed && !stop)
-  {
-    last_time = millis();
+  // измеряем время ответного импульса
+  uint32_t us = pulseIn(echo, HIGH, (HC_MAX_LEN * 2 * 1000 / 343));
 
-    Serial.println(effect);
+  // считаем расстояние и возвращаем
+  return (us * 343L / 2000);
+ 
+}
 
-    switch(effect){
-      case 0: Lighter(255, 0, 255);
-        break;
-      case 1: Colors();
-        break;
-      case 2: RainbowUp();
-        break;
-      case 3: RainbowDown();
-        break;
-      case 4: Sparkles();
-        break;
-      default: effect = 0;
-    }
-    FastLED.show();
-  }
+// медианный фильтр
+int getFilterMedian(int newVal) {
+  static int buf[3];
+  static byte count = 0;
+  buf[count] = newVal;
+  if (++count >= 3) count = 0;
+  return (max(buf[0], buf[1]) == max(buf[1], buf[2])) ? max(buf[0], buf[2]) : max(buf[1], min(buf[0], buf[2]));
+}
+
+// пропускающий фильтр
+#define FS_WINDOW 7   // количество измерений, в течение которого значение не будет меняться
+#define FS_DIFF 80    // разница измерений, с которой начинается пропуск
+int getFilterSkip(int val) {
+  static int prev;
+  static byte count;
+
+  if (!prev && val) prev = val;   // предыдущее значение 0, а текущее нет. Обновляем предыдущее
+  // позволит фильтру резко срабатывать на появление руки
+
+  // разница больше указанной ИЛИ значение равно 0 (цель пропала)
+  if (abs(prev - val) > FS_DIFF || !val) {
+    count++;
+    // счётчик потенциально неправильных измерений
+    if (count > FS_WINDOW) {
+      prev = val;
+      count = 0;
+    } else val = prev;
+  } else count = 0;   // сброс счётчика
+  prev = val;
+  
+  return val;
+}
+
+// экспоненциальный фильтр со сбросом снизу
+#define ES_EXP 2L     // коэффициент плавности (больше - плавнее)
+#define ES_MULT 16L   // мультипликатор повышения разрешения фильтра
+int getFilterExp(int val) {
+  static long filt;
+  if (val) filt += (val * ES_MULT - filt) / ES_EXP;
+  else filt = 0;  // если значение 0 - фильтр резко сбрасывается в 0
+  // в нашем случае - чтобы применить заданную установку и не менять её вниз к нулю
+  return filt / ES_MULT;
 }
