@@ -42,6 +42,11 @@ void pulse();
 void DistanceControl();
 void TouchControl();
 
+
+void setLED() {
+  FastLED.showColor(CRGB(led.R, led.G, led.B));
+}
+
 void setup() {
   Serial.begin(115200);
 
@@ -58,6 +63,9 @@ void setup() {
   FastLED.clear();
   FastLED.show(); 
   delay(1);     // между вызовами show должна быть пауза минимум 40 мкс !!!!
+
+  led.attach(setLED);
+  led.setCRT(1);
 }
 
 void loop() {
@@ -130,12 +138,17 @@ void DistanceControl(){
     if (gest.hold() && powerOn){
        switch (gest.clicks) {
         case 1:
-          brightness = constrain(map(dist, 4, 300, 50, 255), 50, 255);
+          brightness = constrain(map(dist, 60, 300, 40, 255), 50, 255);
           FastLED.setBrightness(brightness);
           FastLED.show();
         break;
         case 2: 
-          dotHue = constrain(map(dist, 4, 300, 0, 255), 0, 255);
+          dotHue = constrain(map(dist, 60, 300, 0, 255), 0, 255);
+          temp = constrain(map(dist, 60, 300, 0, 112), 0, 120);
+          Serial.print("Temp = ");
+          Serial.print(temp);
+          Serial.print(" || Dist = ");
+          Serial.println(dist);
         break;
       }
     }

@@ -2,6 +2,8 @@
 
 #include <Arduino.h>
 #include <FastLED.h>
+#include <GRGB.h>
+extern GRGB led;
 
 #define LED_PIN 13     // пин ленты
 #define NUM_LEDS 7      // кол-во светодиодов
@@ -16,6 +18,7 @@ extern CRGB leds[NUM_LEDS];
 extern uint8_t effect;
 extern uint8_t dotHue; // цвет режима огонёк
 extern bool stop;
+extern uint8_t temp;
 
 void FillAll(CRGB newcolor);
 void Fade(uint8_t speed = FADE_SPEED);
@@ -26,3 +29,5 @@ void RainbowUp();
 void Sparkles();
 void Lighter(uint8_t newcolor);
 void ShowEffect();
+void SetKelvin(byte kelvin);
+void Fire();
