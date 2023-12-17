@@ -88,7 +88,7 @@ void loop() {
       stop = true;
       lastPower = powerOn;
       // Fade(5);
-      for(int i = brightness; i > 0; i--){
+      for(int i = brightness; i >= 0; i--){
         FastLED.setBrightness(i);
         FastLED.show();
         delay(2);
