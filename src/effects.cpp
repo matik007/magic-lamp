@@ -201,7 +201,7 @@ Data data;
 void Fire() {
   static uint32_t rnd_tmr, move_tmr;
   static int rnd_val, fil_val;
-  FillAll(CHSV(3, 255, 255));
+  FillAll(CHSV(3, 255, 255)); // для выключения через красноватый цвет
   
   // таймер 100мс, генерирует случайные значения
   if (millis() - rnd_tmr > 100) {
